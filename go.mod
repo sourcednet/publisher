@@ -2,18 +2,11 @@ module github.com/sourcednet/publisher
 
 go 1.24
 
-// Sibling projects, developed side by side in Dev/ until they are published.
-replace github.com/sourcednet/core => ../core
-
-replace github.com/sourcednet/testkit => ../testkit
-
-replace github.com/sourcednet/resolver => ../resolver
-
 require (
 	github.com/JohannesKaufmann/html-to-markdown/v2 v2.4.0
-	github.com/sourcednet/core v0.0.0-00010101000000-000000000000
-	github.com/sourcednet/resolver v0.0.0-00010101000000-000000000000
-	github.com/sourcednet/testkit v0.0.0-00010101000000-000000000000
+	github.com/sourcednet/core v0.1.0
+	github.com/sourcednet/resolver v0.1.0
+	github.com/sourcednet/testkit v0.1.0
 	golang.org/x/net v0.43.0
 )
 
