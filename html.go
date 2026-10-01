@@ -83,6 +83,7 @@ func extractHTML(src []byte, x Extraction, pageURL string) (*extracted, error) {
 
 	dropSections(content, x.DropSections)
 	separateCells(content)
+	flattenCodeBlocks(content)
 
 	conv := converter.NewConverter(converter.WithPlugins(
 		base.NewBasePlugin(),
@@ -197,6 +198,66 @@ func dropSections(n *html.Node, titles []string) {
 			gone := c
 			c = c.NextSibling
 			n.RemoveChild(gone)
+		}
+	}
+}
+
+// flattenCodeBlocks turns code blocks whose lines are block elements, as
+// highlighters such as Expressive Code write them (<pre><code><div
+// class="ec-line">…), into plain text, one line per block. Otherwise every
+// line would become a paragraph, and the code would be signed with blank
+// lines between its lines.
+func flattenCodeBlocks(n *html.Node) {
+	if n.Type == html.ElementNode && n.DataAtom == atom.Pre {
+		if hasBlockChild(n) {
+			var lines []string
+			collectLines(n, &lines)
+			code := &html.Node{Type: html.ElementNode, Data: "code", DataAtom: atom.Code}
+			if lang := attr(n, "data-language"); lang != "" && lang != "plaintext" {
+				code.Attr = []html.Attribute{{Key: "class", Val: "language-" + lang}}
+			}
+			code.AppendChild(&html.Node{Type: html.TextNode, Data: strings.Join(lines, "\n")})
+			for c := n.FirstChild; c != nil; {
+				next := c.NextSibling
+				n.RemoveChild(c)
+				c = next
+			}
+			n.AppendChild(code)
+		}
+		return
+	}
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		flattenCodeBlocks(c)
+	}
+}
+
+// hasBlockChild reports whether a node holds a div or p anywhere below it.
+func hasBlockChild(n *html.Node) bool {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		if c.Type == html.ElementNode && (c.DataAtom == atom.Div || c.DataAtom == atom.P) {
+			return true
+		}
+		if hasBlockChild(c) {
+			return true
+		}
+	}
+	return false
+}
+
+// collectLines appends the text of each innermost line-holding block below
+// n as one line; text outside blocks is appended to the last line.
+func collectLines(n *html.Node, lines *[]string) {
+	for c := n.FirstChild; c != nil; c = c.NextSibling {
+		switch {
+		case c.Type == html.ElementNode && (c.DataAtom == atom.Div || c.DataAtom == atom.P) && !hasBlockChild(c):
+			*lines = append(*lines, textOf(c))
+		case c.Type == html.TextNode:
+			if len(*lines) == 0 {
+				*lines = append(*lines, "")
+			}
+			(*lines)[len(*lines)-1] += c.Data
+		default:
+			collectLines(c, lines)
 		}
 	}
 }

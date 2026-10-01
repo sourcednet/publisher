@@ -181,3 +181,21 @@ func TestExtractHTMLSeparatesTableCells(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractHTMLFlattensCodeLines(t *testing.T) {
+	// Expressive Code (Starlight's highlighter) writes each line as a div.
+	src := `<html><body><main><p>Example:</p><pre data-language="kriol"><code><div class="ec-line"><div class="code"><span>fn soma(nter a) nter {</span></div></div><div class="ec-line"><div class="code"><span class="indent">    </span><span>divolvi a;</span></div></div><div class="ec-line"><div class="code"><span>}</span></div></div></code></pre></main></body></html>`
+	ex, err := extractHTML([]byte(src), Extraction{}, "https://x.test/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "```kriol\nfn soma(nter a) nter {\n    divolvi a;\n}\n```"
+	if !strings.Contains(ex.Markdown, want) {
+		t.Fatalf("want %q in:\n%s", want, ex.Markdown)
+	}
+	plain := `<html><body><main><pre><code>a := 1
+b := 2</code></pre></main></body></html>`
+	if ex, _ := extractHTML([]byte(plain), Extraction{}, "https://x.test/"); !strings.Contains(ex.Markdown, "a := 1\nb := 2") {
+		t.Fatalf("plain code block changed:\n%s", ex.Markdown)
+	}
+}
