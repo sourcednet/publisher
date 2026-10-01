@@ -17,8 +17,15 @@ const ConfigFile = "sourced.json"
 // Config describes a publisher project. Relative paths resolve against the
 // directory holding the config file.
 type Config struct {
-	Publisher  string           `json:"publisher"`
-	Root       string           `json:"root"`
+	Publisher string `json:"publisher"`
+	// Root is the web root: the signed files go to its
+	// /.well-known/sourced/.
+	Root string `json:"root"`
+	// Pages, if set, is the folder holding the built pages to sign, such as
+	// a site generator's output (dist); otherwise the pages are in Root.
+	// This lets a site sign its build output on the author's machine and
+	// commit the signed files to the folder its generator publishes as is.
+	Pages      string           `json:"pages,omitempty"`
 	KeysDir    string           `json:"keys_dir"`
 	SigningKey string           `json:"signing_key"`
 	Language   string           `json:"language,omitempty"`
@@ -104,9 +111,14 @@ func (c *Config) validate() error {
 	if _, err := parseSelectors(c.DropSelectors); err != nil {
 		return err
 	}
-	root, keys := c.resolve(c.Root), c.resolve(c.KeysDir)
-	if rel, err := filepath.Rel(root, keys); err == nil && !strings.HasPrefix(rel, "..") {
-		return fmt.Errorf("keys_dir %q is inside the web root %q: private keys would be published", c.KeysDir, c.Root)
+	keys := c.resolve(c.KeysDir)
+	for name, dir := range map[string]string{"the web root": c.Root, "the pages folder": c.Pages} {
+		if dir == "" {
+			continue
+		}
+		if rel, err := filepath.Rel(c.resolve(dir), keys); err == nil && !strings.HasPrefix(rel, "..") {
+			return fmt.Errorf("keys_dir %q is inside %s %q: private keys would be published", c.KeysDir, name, dir)
+		}
 	}
 	return nil
 }
@@ -120,6 +132,15 @@ func (c *Config) resolve(p string) string {
 
 // RootDir returns the web root's path.
 func (c *Config) RootDir() string { return c.resolve(c.Root) }
+
+// PagesDir returns the absolute path of the folder holding the pages to
+// sign: Pages if set, otherwise the web root.
+func (c *Config) PagesDir() string {
+	if c.Pages == "" {
+		return c.RootDir()
+	}
+	return c.resolve(c.Pages)
+}
 
 // KeysPath returns the private key directory's path.
 func (c *Config) KeysPath() string { return c.resolve(c.KeysDir) }

@@ -5,6 +5,8 @@ package check
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"io"
@@ -15,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // ErrNotFound means the URL does not exist.
@@ -67,6 +70,9 @@ func (f HTTPFetcher) Fetch(ctx context.Context, rawURL string) ([]byte, http.Hea
 type DirFetcher struct {
 	Root      string
 	Publisher string
+	// Pages, if set, is where pages are; Root still holds
+	// /.well-known/sourced/ (see the publisher's pages setting).
+	Pages string
 }
 
 // Fetch implements Fetcher.
@@ -88,8 +94,12 @@ func (f DirFetcher) Fetch(_ context.Context, rawURL string) ([]byte, http.Header
 	default:
 		candidates = []string{p}
 	}
+	root := f.Root
+	if f.Pages != "" && !strings.HasPrefix(p, "/.well-known/") {
+		root = f.Pages
+	}
 	for _, c := range candidates {
-		full := filepath.Join(f.Root, filepath.FromSlash(c))
+		full := filepath.Join(root, filepath.FromSlash(c))
 		fi, err := os.Stat(full)
 		if errors.Is(err, fs.ErrNotExist) || (err == nil && fi.IsDir()) {
 			continue
@@ -104,4 +114,26 @@ func (f DirFetcher) Fetch(_ context.Context, rawURL string) ([]byte, http.Header
 		return b, http.Header{}, nil
 	}
 	return nil, nil, ErrNotFound
+}
+
+// HTTPClient returns a client with a request timeout. If caFile is set, its
+// PEM certificates are trusted in addition to the system roots: a dev-only
+// setting for local test networks with their own certificate authority.
+func HTTPClient(caFile string, timeout time.Duration) (*http.Client, error) {
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	if caFile != "" {
+		pem, err := os.ReadFile(caFile)
+		if err != nil {
+			return nil, err
+		}
+		pool, err := x509.SystemCertPool()
+		if err != nil {
+			pool = x509.NewCertPool()
+		}
+		if !pool.AppendCertsFromPEM(pem) {
+			return nil, fmt.Errorf("%s: no PEM certificates found", caFile)
+		}
+		tr.TLSClientConfig = &tls.Config{RootCAs: pool}
+	}
+	return &http.Client{Transport: tr, Timeout: timeout}, nil
 }

@@ -14,7 +14,6 @@ import (
 	"github.com/sourcednet/core"
 	"github.com/sourcednet/publisher"
 	"github.com/sourcednet/publisher/check"
-	"github.com/sourcednet/resolver/verifier"
 )
 
 // httpFetcher is what check uses for live domains. Tests replace it.
@@ -37,7 +36,7 @@ func cmdCheck(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		if *ca == "" {
 			return httpFetcher, nil
 		}
-		client, err := verifier.HTTPClient(*ca, 30*time.Second)
+		client, err := check.HTTPClient(*ca, 30*time.Second)
 		if err != nil {
 			return nil, err
 		}
@@ -61,13 +60,13 @@ func cmdCheck(ctx context.Context, args []string, stdout, stderr io.Writer) int 
 		return report(stdout, check.Answer(ctx, lf, raw), *asJSON, "answer from")
 	}
 	if fi, err := os.Stat(target); err == nil && fi.IsDir() {
-		root := target
+		root, pages := target, ""
 		if c, err := publisher.LoadConfig(target); err == nil {
-			root, pub = c.RootDir(), c.Publisher
+			root, pages, pub = c.RootDir(), c.PagesDir(), c.Publisher
 		} else if pub, err = publisherOfRoot(root); err != nil {
 			return fail(stderr, err)
 		}
-		f = check.DirFetcher{Root: root, Publisher: pub}
+		f = check.DirFetcher{Root: root, Publisher: pub, Pages: pages}
 	} else {
 		pub = strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(target, "https://"), "/"))
 		if strings.ContainsAny(pub, "/:") || !strings.Contains(pub, ".") {

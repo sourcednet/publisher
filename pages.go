@@ -22,10 +22,11 @@ type page struct {
 	HTML     bool
 }
 
-// discoverPages lists the pages in the web root: .html, .htm, and .md files
-// outside /.well-known/ and not excluded by the config.
+// discoverPages lists the pages in the pages folder (the web root unless
+// set apart): .html, .htm, and .md files outside /.well-known/ and not
+// excluded by the config.
 func discoverPages(c *Config) ([]string, error) {
-	root := c.RootDir()
+	root := c.PagesDir()
 	var files []string
 	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -85,7 +86,7 @@ func resolvePageRef(c *Config, ref string) (string, error) {
 }
 
 func loadPage(c *Config, rel string) (*page, error) {
-	src, err := os.ReadFile(filepath.Join(c.RootDir(), filepath.FromSlash(rel)))
+	src, err := os.ReadFile(filepath.Join(c.PagesDir(), filepath.FromSlash(rel)))
 	if err != nil {
 		return nil, err
 	}

@@ -12,11 +12,12 @@ import (
 
 // Init creates a project in dir: sourced.json, a first signing key, and
 // keys.json in the web root. It returns the new config.
-func Init(dir, publisher, root string, now time.Time) (*Config, error) {
+func Init(dir, publisher, root, pages string, now time.Time) (*Config, error) {
 	if _, err := os.Stat(filepath.Join(dir, ConfigFile)); err == nil {
 		return nil, fmt.Errorf("%s already exists", filepath.Join(dir, ConfigFile))
 	}
 	c := DefaultConfig(publisher, root)
+	c.Pages = pages
 	c.dir = dir
 	if err := c.validate(); err != nil {
 		return nil, err

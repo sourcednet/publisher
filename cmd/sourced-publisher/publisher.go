@@ -79,7 +79,8 @@ func fail(stderr io.Writer, err error) int {
 func cmdInit(_ context.Context, args []string, stdout, stderr io.Writer) int {
 	fs := newFlags("init", "[project-dir]", stderr)
 	pub := fs.String("publisher", "", "the publisher's domain, e.g. example.org (required)")
-	root := fs.String("root", "public", "the web root, relative to the project directory")
+	root := fs.String("root", "public", "the web root, relative to the project directory: the signed files go to its /.well-known/sourced/")
+	pages := fs.String("pages", "", "the folder holding the built pages to sign, if not the web root (e.g. a site generator's dist)")
 	var now timeFlag
 	fs.Var(&now, "now", "time used to name the first key (RFC 3339; default now)")
 	if code, ok := parseFlags(fs, args); !ok {
@@ -90,7 +91,7 @@ func cmdInit(_ context.Context, args []string, stdout, stderr io.Writer) int {
 		fs.Usage()
 		return 2
 	}
-	c, err := publisher.Init(dir, *pub, *root, now.t)
+	c, err := publisher.Init(dir, *pub, *root, *pages, now.t)
 	if err != nil {
 		return fail(stderr, err)
 	}

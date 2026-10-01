@@ -38,8 +38,21 @@ A project keeps its private keys in `.sourced/keys/`, outside the web root. Depl
 - **`content_selector`**: the element holding a page's main content (a tag, `#id`, …). Empty tries `main`, `article`, then `body` without site chrome.
 - **`drop_selectors`**: elements inside the content to leave out, such as reference lists or navigation boxes (tag, `.class`, `#id`, `tag.class`, `tag#id`).
 - **`drop_sections`**: section headings whose whole section is left out, such as "See also" or "Related articles".
+- **`pages`**: the folder holding the built pages, if not the web root (`init -pages dist`). Pages are read from there; the signed files go to the web root's `/.well-known/sourced/`.
 
 Sign the page's own content, not site chrome or link lists: it costs AI apps tokens and pushes real content down in ranking. Leave out automatic numbering such as footnote markers, which renumbers and changes every later chunk when one is added.
+
+## Signing on your machine, serving as is
+
+A site built by a generator (Astro, Hugo, …) can sign its output locally and commit the signed files, so its server and deployment don't change and the key never leaves the author's machine:
+
+```
+sourced-publisher init -publisher docs.example.org -root public -pages dist site/   # once, in the site's source folder
+npm run build && sourced-publisher build site/                                      # each change: sign dist/ into public/
+git add site/public/.well-known/sourced && git commit                              # the generator copies public/ as is
+```
+
+Keep `.sourced/` (the private keys) out of the repository. The pages in `dist/` get their `<link rel="sourced-record">` tags locally; the server builds its own copy without them, so verifiers find each page through the signed manifest instead, which works the same.
 
 ## Packages
 

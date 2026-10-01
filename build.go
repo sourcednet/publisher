@@ -322,7 +322,7 @@ func (b *builder) link(p *page, recordID string) error {
 		}
 		href = core.WellKnownPath + "records/" + h + ".json"
 	}
-	path := filepath.Join(b.c.RootDir(), filepath.FromSlash(p.File))
+	path := filepath.Join(b.c.PagesDir(), filepath.FromSlash(p.File))
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return err

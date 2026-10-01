@@ -293,7 +293,42 @@ func TestConfigKeepsKeysOutOfWebRoot(t *testing.T) {
 
 func TestInitTwiceFails(t *testing.T) {
 	s := testsite.New(t, domain)
-	if _, err := publisher.Init(s.Dir, domain, "public", testsite.T0); err == nil {
+	if _, err := publisher.Init(s.Dir, domain, "public", "", testsite.T0); err == nil {
 		t.Fatal("second init should fail")
+	}
+}
+
+// TestSignPagesFromAnotherFolder signs a site generator's output (dist)
+// into the folder it publishes as is (public), as a site signing on its
+// author's machine would.
+func TestSignPagesFromAnotherFolder(t *testing.T) {
+	dir := t.TempDir()
+	c, err := publisher.Init(dir, domain, "public", "dist", testsite.T0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := `<html><head><title>Guide</title></head><body><main><h1>Guide</h1><p>Old books last for centuries when stored with care.</p></main></body></html>`
+	if err := os.MkdirAll(dir+"/dist/guides", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(dir+"/dist/guides/care.html", []byte(page), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := publisher.Build(c, publisher.BuildOptions{Now: testsite.T0}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(dir + "/public/.well-known/sourced/manifest.json"); err != nil {
+		t.Fatalf("signed files not in the web root: %v", err)
+	}
+	if _, err := os.Stat(dir + "/dist/.well-known"); !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("signed files written to the pages folder: %v", err)
+	}
+	f := check.DirFetcher{Root: c.RootDir(), Publisher: domain, Pages: c.PagesDir()}
+	if res := check.Publisher(context.Background(), f, domain, check.Options{}); !res.OK() || res.Pages != 1 {
+		t.Fatalf("check: %d pages, %+v", res.Pages, res.Findings)
+	}
+
+	if _, err := publisher.Init(t.TempDir(), domain, "public", ".sourced", testsite.T0); err == nil || !strings.Contains(err.Error(), "inside the pages folder") {
+		t.Fatalf("keys inside the pages folder: %v", err)
 	}
 }
